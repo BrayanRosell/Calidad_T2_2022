@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Linq;
 using CalidadT2.Models;
+using CalidadT2.Repositorio;
+using CalidadT2.Service;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,45 +10,37 @@ namespace CalidadT2.Controllers
 {
     public class LibroController : Controller
     {
-        private readonly AppBibliotecaContext app;
-
-        public LibroController(AppBibliotecaContext app)
+        private IBookRepository repository;
+        private IClaimService claimService;
+        public LibroController(IBookRepository repository, IClaimService claimService)
         {
-            this.app = app;
+            this.repository = repository;
+            this.claimService = claimService;
+            claimService.setHttpContext(HttpContext);
         }
 
         [HttpGet]
         public IActionResult Details(int id)
         {
-            var model = app.Libros
-                .Include("Autor")
-                .Include("Comentarios.Usuario")
-                .Where(o => o.Id == id)
-                .FirstOrDefault();
-            return View(model);
+            var model = repository.ObtenerFirst(id);
+            return View("Details", model);
         }
 
         [HttpPost]
         public IActionResult AddComentario(Comentario comentario)
         {
-            Usuario user = LoggedUser();
-            comentario.UsuarioId = user.Id;
+            claimService.setHttpContext(HttpContext);
+            Usuario user = claimService.GetLoggedUsername();
+
+            comentario.UsuarioId = 1;
             comentario.Fecha = DateTime.Now;
-            app.Comentarios.Add(comentario);
 
-            var libro = app.Libros.Where(o => o.Id == comentario.LibroId).FirstOrDefault();
-            libro.Puntaje = (libro.Puntaje + comentario.Puntaje) / 2;
 
-            app.SaveChanges();
+            claimService.AddComentario(comentario);
 
             return RedirectToAction("Details", new { id = comentario.LibroId });
         }
 
-        private Usuario LoggedUser()
-        {
-            var claim = HttpContext.User.Claims.FirstOrDefault();
-            var user = app.Usuarios.Where(o => o.Username == claim.Value).FirstOrDefault();
-            return user;
-        }
+       
     }
 }

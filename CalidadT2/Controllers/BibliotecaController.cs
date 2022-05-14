@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CalidadT2.Constantes;
 using CalidadT2.Models;
+using CalidadT2.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,31 +14,30 @@ namespace CalidadT2.Controllers
     [Authorize]
     public class BibliotecaController : Controller
     {
-        private readonly AppBibliotecaContext app;
+        private IClaimService claimService;
 
-        public BibliotecaController(AppBibliotecaContext app)
-        {
-            this.app = app;
+        public BibliotecaController(IClaimService claimService)
+        { 
+            this.claimService = claimService;
+            claimService.setHttpContext(HttpContext);
         }
 
         [HttpGet]
         public IActionResult Index()
         {
-            Usuario user = LoggedUser();
+            claimService.setHttpContext(HttpContext);
+            Usuario user = claimService.GetLoggedUsername();
 
-            var model = app.Bibliotecas
-                .Include(o => o.Libro.Autor)
-                .Include(o => o.Usuario)
-                .Where(o => o.UsuarioId == user.Id)
-                .ToList();
+            var model = claimService.ObtenerDatosBiblioteca();
 
-            return View(model);
+            return View("Index", model);
         }
 
         [HttpGet]
         public ActionResult Add(int libro)
         {
-            Usuario user = LoggedUser();
+            claimService.setHttpContext(HttpContext);
+            Usuario user = claimService.GetLoggedUsername();
 
             var biblioteca = new Biblioteca
             {
@@ -46,10 +46,9 @@ namespace CalidadT2.Controllers
                 Estado = ESTADO.POR_LEER
             };
 
-            app.Bibliotecas.Add(biblioteca);
-            app.SaveChanges();
+            claimService.AddLibro(biblioteca);
 
-            TempData["SuccessMessage"] = "Se añádio el libro a su biblioteca";
+             //TempData["SuccessMessage"] = "Se añádio el libro a su biblioteca";
 
             return RedirectToAction("Index", "Home");
         }
@@ -57,16 +56,13 @@ namespace CalidadT2.Controllers
         [HttpGet]
         public ActionResult MarcarComoLeyendo(int libroId)
         {
-            Usuario user = LoggedUser();
+            claimService.setHttpContext(HttpContext);
+            Usuario user = claimService.GetLoggedUsername();
 
-            var libro = app.Bibliotecas
-                .Where(o => o.LibroId == libroId && o.UsuarioId == user.Id)
-                .FirstOrDefault();
+            var libro = claimService.marcarComoLeyendo(libroId, user);
+            claimService.GuardarEnDB();
 
-            libro.Estado = ESTADO.LEYENDO;
-            app.SaveChanges();
-
-            TempData["SuccessMessage"] = "Se marco como leyendo el libro";
+            //TempData["SuccessMessage"] = "Se marco como leyendo el libro";
 
             return RedirectToAction("Index");
         }
@@ -74,25 +70,17 @@ namespace CalidadT2.Controllers
         [HttpGet]
         public ActionResult MarcarComoTerminado(int libroId)
         {
-            Usuario user = LoggedUser();
+            claimService.setHttpContext(HttpContext);
+            Usuario user = claimService.GetLoggedUsername();
 
-            var libro = app.Bibliotecas
-                .Where(o => o.LibroId == libroId && o.UsuarioId == user.Id)
-                .FirstOrDefault();
+            var libro = claimService.marcarComoLeyendo(libroId, user);
+            claimService.GuardarEnDB();
 
-            libro.Estado = ESTADO.TERMINADO;
-            app.SaveChanges();
-
-            TempData["SuccessMessage"] = "Se marco como leyendo el libro";
+            //TempData["SuccessMessage"] = "Se marco como leyendo el libro";
 
             return RedirectToAction("Index");
         }
 
-        private Usuario LoggedUser()
-        {
-            var claim = HttpContext.User.Claims.FirstOrDefault();
-            var user = app.Usuarios.Where(o => o.Username == claim.Value).FirstOrDefault();
-            return user;
-        }
+       
     }
 }

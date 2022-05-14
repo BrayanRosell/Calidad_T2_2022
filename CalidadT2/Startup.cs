@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using CalidadT2.Models;
+using CalidadT2.Repositorio;
+using CalidadT2.Service;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -37,6 +39,8 @@ namespace CalidadT2
                 {
                     options.LoginPath = "/Auth/Login";
                 });
+            services.AddTransient<IBookRepository, BookRepository>(); 
+            services.AddTransient<IClaimService, ClaimService>(); 
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
